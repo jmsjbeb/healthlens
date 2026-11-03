@@ -6,7 +6,7 @@
      2. 更新走「网络优先」，拿不到网络才用缓存
         —— 不做「缓存优先」，否则改一版代码用户永远看到旧的
    ============================================================ */
-const CACHE = 'healthlens-v7';
+const CACHE = 'healthlens-v8';
 const ASSETS = [
   './',
   './index.html',
@@ -24,7 +24,8 @@ const ASSETS = [
   './js/app.js',
   './manifest.json',
   './icon-192.png',
-  './icon-512.png'
+  './icon-512.png',
+  './icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (e) => {

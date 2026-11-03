@@ -604,7 +604,7 @@ Tesseract 直接吃体检报告会彻底失败——表格线被当成笔画，�
 | :-- | :-- |
 | 加到主屏幕 | `manifest.json`（standalone、竖屏、主题色 `#0A6E75`、3 个图标含 maskable）；上传页有一张「装到手机主屏」卡，安卓 Chrome 命中 `beforeinstallprompt` 时右侧直接出现**「一键安装」**按钮 |
 | 全屏无地址栏 | `display: standalone` + `apple-mobile-web-app-capable` |
-| 断网可用 | Service Worker 预缓存 17 个资源；**network-first**，改了代码能立刻生效。识别引擎 5.7MB 不预缓存，首次用过之后走缓存优先 |
+| 断网可用 | Service Worker 预缓存 18 个资源；**network-first**，改了代码能立刻生效。识别引擎 5.7MB 不预缓存，首次用过之后走缓存优先 |
 | 记住上次状态 | 刷新后自动回到上次的报告，不用重新点一遍 |
 | 刘海屏适配 | `viewport-fit=cover` + `env(safe-area-inset-bottom)` |
 

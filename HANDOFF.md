@@ -65,7 +65,7 @@ node server/dev.js                # 浏览器开 http://127.0.0.1:8787
 |:--|:--|:--|
 | `index.html` | 入口骨架，只引脚本（含「只在本地加载 `config.local.js`」那段判断） | 低 |
 | `css/app.css` | 全部样式。**末尾两段是桌面双栏（`@media min-width:900px`）和安装卡**，改动优先加在末尾 | 中：改断点会同时影响两端 |
-| `sw.js` `manifest.json` | PWA：离线缓存 + 装到主屏 | 低：**改静态资源就要 bump `healthlens-v7`** |
+| `sw.js` `manifest.json` | PWA：离线缓存 + 装到主屏 | 低：**改静态资源就要 bump `healthlens-v8`** |
 | `js/dict.js` | **字典层**：200 项指标 / 41 家族 / 17 专属文案。`D(id,name,unit,ref,dir,fam,{rule,sexRef,benignMax})` | **新增指标 = 加一行 `D()`**，引擎/文案/视图都不用动 |
 | `js/engine.js` | 计算层：评分、星级、异常判定、单位换算（`UNIT_CONV` :117-160）、模糊匹配 `HL.matchId` | 高：参考区间兜底、`normRef`、定性结果识别都在这 |
 | `js/data.js` | 知识层：规则、文案模板（`{hcy.v}` 占位符 + `{?k}…{/k}` 条件块）、饮食/运动计划 | 中：文案是模板不是硬编码 |
@@ -122,7 +122,7 @@ node server/dev.js                # 浏览器开 http://127.0.0.1:8787
 4. **`parseFloat('2+')` 得 2**：只有整串是数字才转数值，否则尿蛋白 2+ 被当数字判正常。
 5. **`normRef` 必须在匹配后、判定前跑**：参考区间可能是 `"7-40"` 字符串，`60 > '-'` 得 NaN。
 6. **宁可匹配不上也不能误配**：`EXCLUDE` 挡前白蛋白/糖化白蛋白/总T3/游离PSA。模糊匹配失败就标红让用户下拉选择，绝不静默丢弃。
-7. **SW 是 network-first**：改 cache-first 会让改代码不生效。SW 版本号在 `sw.js` 顶部的 `healthlens-v7`，**改任何静态资源都要 bump**。缓存清单里已包含 `js/img.js`；**不要往里加 `js/config.local.js`**——它被 gitignore 排除，`addAll` 会因一个 404 让整批缓存失败。
+7. **SW 是 network-first**：改 cache-first 会让改代码不生效。SW 版本号在 `sw.js` 顶部的 `healthlens-v8`，**改任何静态资源都要 bump**。缓存清单里已包含 `js/img.js`；**不要往里加 `js/config.local.js`**——它被 gitignore 排除，`addAll` 会因一个 404 让整批缓存失败。
 8. **科室刻意不加肿瘤科**：标志物轻度升高多为假阳性，推肿瘤科制造恐慌。文案写「4–6 周复查同一项」。
 9. **改 `app.js` 后对外报数字之前**：先 `node --check` 全部 js → 跑 `q_warnstore.js` + `regress_b.js` → 看四页截图。「测试全绿」和「改动按意图生效」是两件事。
 10. **验证阶梯**：语法检查 → 最小实跑 → 产物存在 → **截图看图** → 像素采样。静默错误只能靠看图发现。
