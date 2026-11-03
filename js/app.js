@@ -36,12 +36,18 @@
   };
 
   /* PWA 安装：安卓 Chrome 会派发 beforeinstallprompt，捕获后能「一键安装」；
-     iOS Safari 没有这个事件，只能给「分享 → 添加到主屏幕」的指引。 */
-  var DEFERRED_INSTALL = null;
+     iOS Safari 没有这个事件，只能给「分享 → 添加到主屏幕」的指引。
+     事件监听本身放在 index.html 的 <head> 里（要抢在任何脚本之前注册），
+     这里只消费 window.__HL_BIP；显隐由 html.can-install 这个类驱动，
+     所以「事件早于渲染 / 渲染早于事件」两种顺序都能正常点亮按钮。 */
+  function deferredInstall() { return window.__HL_BIP || null; }
   function doInstall() {
-    if (DEFERRED_INSTALL) {
-      DEFERRED_INSTALL.prompt();
-      DEFERRED_INSTALL.userChoice.then(function () { DEFERRED_INSTALL = null; });
+    var ev = deferredInstall();
+    if (ev) {
+      ev.prompt();
+      if (ev.userChoice && ev.userChoice.then) {
+        ev.userChoice.then(function () { window.__HL_BIP = null; });
+      }
       return;
     }
     var ua = navigator.userAgent || '';
@@ -53,19 +59,9 @@
     );
   }
 
-  /* 事件必须在脚本一执行就挂上：Chrome 是在页面加载早期派发的，
-     等渲染完再监听就已经错过了，用户永远看不到「一键安装」。
-     所以这里用模块级监听，按钮存在就点亮，不存在就等渲染时再点亮。 */
-  window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault();
-    DEFERRED_INSTALL = e;
-    var b = $('#btnInstall');
-    if (b) b.style.display = '';
-  });
   window.addEventListener('appinstalled', function () {
-    DEFERRED_INSTALL = null;
-    var b = $('#btnInstall');
-    if (b) b.style.display = 'none';
+    window.__HL_BIP = null;
+    document.documentElement.classList.remove('can-install');
     var c = $('.install-card');
     if (c) c.style.display = 'none';
   });
@@ -615,7 +611,7 @@
         '</div>' +
         '<div class="ic-t"><b>装到手机主屏，像 App 一样用</b>' +
           '<span>安卓：浏览器菜单选「安装应用 / 添加到主屏」；iPhone：分享 ⤴ → 添加到主屏幕。不用下载安装包。</span></div>' +
-        '<button class="ic-btn" id="btnInstall" style="display:none">一键安装</button>' +
+        '<button class="ic-btn" id="btnInstall">一键安装</button>' +
       '</div>';
 
     var dz = $('#dz'), input = $('#fileInput'), go = $('#btnGo');
@@ -694,11 +690,10 @@
     var wpAdd = $('#view-intake [data-add]');
     if (wpAdd) wpAdd.addEventListener('click', openSheet);
 
+    /* 按钮显隐由 html.can-install 这个类控制（见 beforeinstallprompt 监听），
+       这里只挂点击；重渲染多少次都不会把状态弄丢。 */
     var ib = $('#btnInstall');
-    if (ib) {
-      if (DEFERRED_INSTALL) ib.style.display = '';
-      ib.addEventListener('click', doInstall);
-    }
+    if (ib) ib.addEventListener('click', doInstall);
   }
 
   /* ================= 扫描动效 ================= */

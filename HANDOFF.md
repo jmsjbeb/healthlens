@@ -12,7 +12,7 @@
 
 **可选增强（需本机代理）：AI 影像描述结构化** —— 把「甲状腺右叶结节 2.4×1.7mm，边界清，无钙化」抽成结构化的尺寸/边界/钙化，补进影像卡。模型只做「抽取归一化」，判定仍由本地规则引擎完成。不配也能用，自动降级为原文展示。
 
-**质量口径（2026-11-03 桌面布局 + PWA 安装这一版）：`app.js` sha256 `8a10a382…`（126,349B）、`css/app.css` `f16750ec…`（86,112B）、`index.html` `694f8a38…`（5,137B）、`sw.js` `060bec1a…`（2,589B）。** 重跑结果：`full_regress.js` 28/28、`regress_b.js` 14/14、`q_warnstore.js` 18/18 全 PASS，`t1`–`t15` 全部退出码 0、零控制台报错；**四页签字数 4752/3245/4693/3771 与基线逐字节一致**（说明桌面双栏没有改动手机端任何文案）。
+**质量口径（2026-11-03 桌面布局 + PWA 安装这一版）：`app.js` sha256 `b211f75d…`（126,319B）、`css/app.css` `a53cbe93…`（86,302B）、`index.html` `5e9b3e66…`（5,715B）、`sw.js` `d35948f1…`（2,618B）。** 重跑结果：`full_regress.js` 28/28、`regress_b.js` 14/14、`q_warnstore.js` 18/18 全 PASS，`t1`–`t15` 全部退出码 0、零控制台报错；**四页签字数 4752/3245/4693/3771 与基线逐字节一致**（说明桌面双栏没有改动手机端任何文案）。
 历史口径：上一版（`70f3fdc3…`，115,904B）的 169 条用例全通过；**「150/150」「159/159」都是更早的数字，作废。**
 
 ## 一之二、两端形态（手机是 App，电脑是网页）
@@ -65,7 +65,7 @@ node server/dev.js                # 浏览器开 http://127.0.0.1:8787
 |:--|:--|:--|
 | `index.html` | 入口骨架，只引脚本（含「只在本地加载 `config.local.js`」那段判断） | 低 |
 | `css/app.css` | 全部样式。**末尾两段是桌面双栏（`@media min-width:900px`）和安装卡**，改动优先加在末尾 | 中：改断点会同时影响两端 |
-| `sw.js` `manifest.json` | PWA：离线缓存 + 装到主屏 | 低：**改静态资源就要 bump `healthlens-v8`** |
+| `sw.js` `manifest.json` | PWA：离线缓存 + 装到主屏 | 低：**改静态资源就要 bump 顶部 `CACHE` 版本号** |
 | `js/dict.js` | **字典层**：200 项指标 / 41 家族 / 17 专属文案。`D(id,name,unit,ref,dir,fam,{rule,sexRef,benignMax})` | **新增指标 = 加一行 `D()`**，引擎/文案/视图都不用动 |
 | `js/engine.js` | 计算层：评分、星级、异常判定、单位换算（`UNIT_CONV` :117-160）、模糊匹配 `HL.matchId` | 高：参考区间兜底、`normRef`、定性结果识别都在这 |
 | `js/data.js` | 知识层：规则、文案模板（`{hcy.v}` 占位符 + `{?k}…{/k}` 条件块）、饮食/运动计划 | 中：文案是模板不是硬编码 |
@@ -122,12 +122,13 @@ node server/dev.js                # 浏览器开 http://127.0.0.1:8787
 4. **`parseFloat('2+')` 得 2**：只有整串是数字才转数值，否则尿蛋白 2+ 被当数字判正常。
 5. **`normRef` 必须在匹配后、判定前跑**：参考区间可能是 `"7-40"` 字符串，`60 > '-'` 得 NaN。
 6. **宁可匹配不上也不能误配**：`EXCLUDE` 挡前白蛋白/糖化白蛋白/总T3/游离PSA。模糊匹配失败就标红让用户下拉选择，绝不静默丢弃。
-7. **SW 是 network-first**：改 cache-first 会让改代码不生效。SW 版本号在 `sw.js` 顶部的 `healthlens-v8`，**改任何静态资源都要 bump**。缓存清单里已包含 `js/img.js`；**不要往里加 `js/config.local.js`**——它被 gitignore 排除，`addAll` 会因一个 404 让整批缓存失败。
+7. **SW 是 network-first**：改 cache-first 会让改代码不生效。SW 版本号是 `sw.js` 顶部的 `CACHE` 常量（当前 `healthlens-v9`），**改任何静态资源都要 bump**。缓存清单里已包含 `js/img.js`；**不要往里加 `js/config.local.js`**——它被 gitignore 排除，`addAll` 会因一个 404 让整批缓存失败。
 8. **科室刻意不加肿瘤科**：标志物轻度升高多为假阳性，推肿瘤科制造恐慌。文案写「4–6 周复查同一项」。
 9. **改 `app.js` 后对外报数字之前**：先 `node --check` 全部 js → 跑 `q_warnstore.js` + `regress_b.js` → 看四页截图。「测试全绿」和「改动按意图生效」是两件事。
 10. **验证阶梯**：语法检查 → 最小实跑 → 产物存在 → **截图看图** → 像素采样。静默错误只能靠看图发现。
 11. **`beforeinstallprompt` 必须模块级监听**：放在渲染函数里就永远收不到（Chrome 在页面加载早期派发）。`appinstalled` 之后要把按钮和整张卡都收掉。
 12. **`js/config.local.js` 只在 localhost / 127.0.0.1 / file:// 下加载**（`index.html` 里那段 `document.write` 判断）。写死 `<script src>` 会让 GitHub Pages 每次访问都在控制台报一个 404，破坏「零报错」这条验收线。
+14. **「一键安装」按钮别用内联 style 控制显隐**：`beforeinstallprompt` 与「上传页渲染」谁先谁后不确定，改内联样式会在「事件早于渲染」时被新渲染的按钮覆盖，按钮永远点不亮（实测线上就是这样，本地因为渲染快反而看不出来）。正确做法：监听放在 `index.html` 的 `<head>`（抢在 app.js 之前注册），显隐由 `html.can-install` 这个类驱动，事件对象存 `window.__HL_BIP`。已用 50ms / 400ms / 1800ms 三种派发时序验证都能点亮。
 13. **推 GitHub 不能走 `git push`**：本机 `github.com:443` 被阻断。用 Git Data API（`blobs` → `trees`（带 `base_tree`）→ `commits` → `PATCH refs/heads/main`），只有 `api.github.com` 可达。**本地与远端是两条独立历史**（远端由 API 造），别再纠结 `git log` 对不上。
 
 ## 七、发布路径（用户已定调）
