@@ -12,7 +12,35 @@
 
 **可选增强（需本机代理）：AI 影像描述结构化** —— 把「甲状腺右叶结节 2.4×1.7mm，边界清，无钙化」抽成结构化的尺寸/边界/钙化，补进影像卡。模型只做「抽取归一化」，判定仍由本地规则引擎完成。不配也能用，自动降级为原文展示。
 
-**质量口径：`app.js` sha256 `70f3fdc3…`（115,904B）这一版，169 条自动化用例全通过，跑前跑后 13 项指纹逐字节一致。** 「150/150」「159/159」都是旧数字，作废。
+**质量口径（2026-11-03 桌面布局 + PWA 安装这一版）：`app.js` sha256 `8a10a382…`（126,349B）、`css/app.css` `f16750ec…`（86,112B）、`index.html` `694f8a38…`（5,137B）、`sw.js` `060bec1a…`（2,589B）。** 重跑结果：`full_regress.js` 28/28、`regress_b.js` 14/14、`q_warnstore.js` 18/18 全 PASS，`t1`–`t15` 全部退出码 0、零控制台报错；**四页签字数 4752/3245/4693/3771 与基线逐字节一致**（说明桌面双栏没有改动手机端任何文案）。
+历史口径：上一版（`70f3fdc3…`，115,904B）的 169 条用例全通过；**「150/150」「159/159」都是更早的数字，作废。**
+
+## 一之二、两端形态（手机是 App，电脑是网页）
+
+| | 手机（<900px） | 电脑（≥900px） |
+|:--|:--|:--|
+| 宽度 | 100%，原设计 | `.app` 加宽到 **860px**，两侧留白 210px |
+| 维度条 | 单列 | `.domain-grid` 两列（各 382px） |
+| 关注项卡片 | 单列 | `.findings-grid` 两列，**第一张「优先处理」卡 `grid-column:1/-1` 跨两栏** |
+| 装到桌面 | 上传页有「装到手机主屏」卡 | 同一张卡也显示（桌面 Chrome 也能装成独立窗口应用） |
+
+**两条必须守住的规则**：
+1. **断点只有一个：900px。** 两栏各约 382px，正好等于原手机设计宽度——内容不会变形。别再塞第三个断点，多一档就多一处要验的破版。
+2. **`.findings-grid .finding.is-hidden{display:none}` 不能漏。** 折叠区（`showAllFindings=false`）靠这个类隐藏多余卡片；网格布局下忘了它，「展开全部」会失效。
+
+## 一之三、装到手机主屏（PWA，不用上架应用商店）
+
+**用户要的是「能分享给别人用」，不是安装包。** 这条路径不需要签名、不需要审核、不需要备案，发个链接就能用。
+
+- 清单在 `manifest.json`（`display:standalone`），图标 `icon-192.png` / `icon-512.png`（含 maskable）
+- **安卓 Chrome**：命中 `beforeinstallprompt` → 安装卡右侧出现「一键安装」按钮 → `doInstall()` 调 `prompt()`
+- **iPhone Safari**：没有这个事件 → 按钮不出现，只显示「分享 ⤴ → 添加到主屏幕」的指引
+- **已经是 App 模式**（`display-mode: standalone`）→ 整张安装卡隐藏，不再劝装
+- 监听必须**在脚本一执行就挂上**（模块级），不能等渲染完——Chrome 在页面加载早期派发，晚了就永远捕获不到
+- 安装卡 CSS 在手机上按钮独占一行（`@media(max-width:520px)`），否则会把说明挤成三行
+
+**分享给别人就一个链接**：`https://jmsjbeb.github.io/healthlens/`。微信里点开会用内置浏览器打开（不能装成 App，但能正常用）；让对方点右上角「在浏览器打开」再装。
+
 
 ## 二、怎么跑起来
 
@@ -35,7 +63,9 @@ node server/dev.js                # 浏览器开 http://127.0.0.1:8787
 
 | 文件 | 职责 | 改动风险 |
 |:--|:--|:--|
-| `index.html` | 入口骨架，只引脚本 | 低 |
+| `index.html` | 入口骨架，只引脚本（含「只在本地加载 `config.local.js`」那段判断） | 低 |
+| `css/app.css` | 全部样式。**末尾两段是桌面双栏（`@media min-width:900px`）和安装卡**，改动优先加在末尾 | 中：改断点会同时影响两端 |
+| `sw.js` `manifest.json` | PWA：离线缓存 + 装到主屏 | 低：**改静态资源就要 bump `healthlens-v7`** |
 | `js/dict.js` | **字典层**：200 项指标 / 41 家族 / 17 专属文案。`D(id,name,unit,ref,dir,fam,{rule,sexRef,benignMax})` | **新增指标 = 加一行 `D()`**，引擎/文案/视图都不用动 |
 | `js/engine.js` | 计算层：评分、星级、异常判定、单位换算（`UNIT_CONV` :117-160）、模糊匹配 `HL.matchId` | 高：参考区间兜底、`normRef`、定性结果识别都在这 |
 | `js/data.js` | 知识层：规则、文案模板（`{hcy.v}` 占位符 + `{?k}…{/k}` 条件块）、饮食/运动计划 | 中：文案是模板不是硬编码 |
@@ -92,10 +122,13 @@ node server/dev.js                # 浏览器开 http://127.0.0.1:8787
 4. **`parseFloat('2+')` 得 2**：只有整串是数字才转数值，否则尿蛋白 2+ 被当数字判正常。
 5. **`normRef` 必须在匹配后、判定前跑**：参考区间可能是 `"7-40"` 字符串，`60 > '-'` 得 NaN。
 6. **宁可匹配不上也不能误配**：`EXCLUDE` 挡前白蛋白/糖化白蛋白/总T3/游离PSA。模糊匹配失败就标红让用户下拉选择，绝不静默丢弃。
-7. **SW 是 network-first**：改 cache-first 会让改代码不生效。SW 版本号在 `sw.js` 顶部的 `healthlens-v6`，**改任何静态资源都要 bump**。
+7. **SW 是 network-first**：改 cache-first 会让改代码不生效。SW 版本号在 `sw.js` 顶部的 `healthlens-v7`，**改任何静态资源都要 bump**。缓存清单里已包含 `js/img.js`；**不要往里加 `js/config.local.js`**——它被 gitignore 排除，`addAll` 会因一个 404 让整批缓存失败。
 8. **科室刻意不加肿瘤科**：标志物轻度升高多为假阳性，推肿瘤科制造恐慌。文案写「4–6 周复查同一项」。
 9. **改 `app.js` 后对外报数字之前**：先 `node --check` 全部 js → 跑 `q_warnstore.js` + `regress_b.js` → 看四页截图。「测试全绿」和「改动按意图生效」是两件事。
 10. **验证阶梯**：语法检查 → 最小实跑 → 产物存在 → **截图看图** → 像素采样。静默错误只能靠看图发现。
+11. **`beforeinstallprompt` 必须模块级监听**：放在渲染函数里就永远收不到（Chrome 在页面加载早期派发）。`appinstalled` 之后要把按钮和整张卡都收掉。
+12. **`js/config.local.js` 只在 localhost / 127.0.0.1 / file:// 下加载**（`index.html` 里那段 `document.write` 判断）。写死 `<script src>` 会让 GitHub Pages 每次访问都在控制台报一个 404，破坏「零报错」这条验收线。
+13. **推 GitHub 不能走 `git push`**：本机 `github.com:443` 被阻断。用 Git Data API（`blobs` → `trees`（带 `base_tree`）→ `commits` → `PATCH refs/heads/main`），只有 `api.github.com` 可达。**本地与远端是两条独立历史**（远端由 API 造），别再纠结 `git log` 对不上。
 
 ## 七、发布路径（用户已定调）
 
@@ -103,4 +136,4 @@ node server/dev.js                # 浏览器开 http://127.0.0.1:8787
 
 ---
 
-*交接前最后状态：26 文件 / 7.8MB（vendor 7.0MB + js 420KB + css 84KB）；指纹清单见 `README.md` 回归表；测试脚本 `E:/tmp/hltest/`（一次性环境，不在项目内）。*
+*交接前最后状态：32 个文件 / 7.9MB（vendor 7.0MB + js 441KB + css 88KB），其中 30 个进仓库，`js/config.local.js` 与 `server/key.local.txt` 被 gitignore 排除；指纹清单见 `README.md` 回归表；测试脚本 `E:/tmp/hltest/`（一次性环境，不在项目内）。*
