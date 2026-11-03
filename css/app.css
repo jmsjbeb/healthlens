@@ -2050,3 +2050,64 @@ html{scroll-behavior:smooth}
 .llm-note b{color:var(--ink)}
 .llm-actions{display:flex;flex-direction:column;gap:8px}
 .llm-actions .btn-main,.llm-actions .btn-ghost{width:100%}
+
+/* ===== 桌面端宽屏布局：从「手机框」变成真正的双栏网页 =====
+   手机上（<900px）完全不变；电脑上整体加宽到 860px，
+   健康维度条和关注项卡片各排两栏（每栏约 430px，正好是原设计宽度，内容不变形）。 */
+@media (min-width: 900px) {
+  .app { max-width: 860px; }
+  .domain-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 30px;
+  }
+  /* 双栏后第 2 项在第一行，不该有上分隔线 */
+  .domain-grid .domain-row:nth-child(2) { border-top: 0; }
+  .findings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .findings-grid .finding { margin-bottom: 0; }
+  .findings-grid .finding.is-top { grid-column: 1 / -1; }
+  .findings-grid .finding.is-hidden { display: none; }
+}
+
+/* ===== 「装到手机主屏」提示卡 =====
+   安卓 Chrome 命中 beforeinstallprompt 时，右侧会出现「一键安装」按钮；
+   其余情况（iPhone Safari / 桌面浏览器）只显示说明文字，不出现按钮。 */
+.install-card{
+  display:flex; align-items:center; flex-wrap:wrap; gap:10px 11px;
+  margin-top:12px; padding:13px 14px;
+  border-radius:var(--r-m);
+  background:rgba(12,139,148,.055);
+  border:1px solid var(--teal-line);
+}
+.ic-ico{
+  flex:0 0 34px; width:34px; height:34px; border-radius:10px;
+  background:var(--card); display:flex; align-items:center; justify-content:center;
+  box-shadow:var(--sh-1);
+}
+.ic-ico svg{width:18px; height:18px; display:block}
+.ic-t{flex:1 1 180px; min-width:0; display:flex; flex-direction:column; gap:3px}
+.ic-t b{font-size:13px; line-height:1.4; font-weight:600; color:var(--ink)}
+.ic-t span{font-size:11px; line-height:1.65; color:var(--ink3)}
+.ic-btn{
+  flex:0 0 auto; margin-left:auto;
+  font-size:12px; font-weight:600; line-height:1;
+  padding:9px 14px; border-radius:9px;
+  background:var(--teal); color:#fff; white-space:nowrap;
+  box-shadow:0 1px 2px rgba(12,139,148,.35);
+  transition:transform .12s ease, background .15s ease;
+}
+.ic-btn:hover{background:var(--teal-d)}
+.ic-btn:active{transform:scale(.96)}
+/* 手机上按钮太窄会把说明挤成三行，改成独占一行、整行可点 */
+@media (max-width: 520px) {
+  .install-card { align-items: flex-start; }
+  .ic-btn {
+    flex: 1 0 100%; margin-left: 0; margin-top: 3px;
+    padding: 11px 14px; font-size: 13px; text-align: center;
+  }
+}

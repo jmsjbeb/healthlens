@@ -35,6 +35,49 @@
     uploadedFile: null, showAllFindings: false
   };
 
+  /* PWA 安装：安卓 Chrome 会派发 beforeinstallprompt，捕获后能「一键安装」；
+     iOS Safari 没有这个事件，只能给「分享 → 添加到主屏幕」的指引。 */
+  var DEFERRED_INSTALL = null;
+  function doInstall() {
+    if (DEFERRED_INSTALL) {
+      DEFERRED_INSTALL.prompt();
+      DEFERRED_INSTALL.userChoice.then(function () { DEFERRED_INSTALL = null; });
+      return;
+    }
+    var ua = navigator.userAgent || '';
+    var ios = /iPad|iPhone|iPod/.test(ua);
+    window.alert(
+      ios
+        ? '在 iPhone 上用 Safari 打开本页，点底部的分享按钮 ⤴，选「添加到主屏幕」。\n\n添加后桌面会出现「康鉴」图标，点开就是全屏，和 App 一样。'
+        : '在手机浏览器里打开本页，点右上角菜单 ⋮，选「安装应用」或「添加到主屏幕」。\n\n添加后桌面会出现「康鉴」图标，点开就是全屏，和 App 一样。'
+    );
+  }
+
+  /* 事件必须在脚本一执行就挂上：Chrome 是在页面加载早期派发的，
+     等渲染完再监听就已经错过了，用户永远看不到「一键安装」。
+     所以这里用模块级监听，按钮存在就点亮，不存在就等渲染时再点亮。 */
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    DEFERRED_INSTALL = e;
+    var b = $('#btnInstall');
+    if (b) b.style.display = '';
+  });
+  window.addEventListener('appinstalled', function () {
+    DEFERRED_INSTALL = null;
+    var b = $('#btnInstall');
+    if (b) b.style.display = 'none';
+    var c = $('.install-card');
+    if (c) c.style.display = 'none';
+  });
+
+  /* 已经是「装好的 App」（全屏无地址栏）就不用再劝装了 */
+  function isStandalone() {
+    try {
+      return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+             window.navigator.standalone === true;
+    } catch (err) { return false; }
+  }
+
   /* ================= 日历文件：提醒的零成本实现 =================
      为什么不做微信推送：小程序的一次性订阅消息每授权一次只能发一条；
      长期订阅只对政务、医疗等特定二级类目开放，个人主体拿不到医疗健康类目。
@@ -563,9 +606,23 @@
 
       '<div class="disclaimer"><b>关于本产品</b>' +
         '报告识别在本机完成，图片不会上传。识别结果会先让你逐行核对再分析——OCR 不是百分之百准，数字错一个结论就会反。所有结论基于公开的检验参考区间与临床指南，不替代执业医师的诊断。' +
+      '</div>' +
+
+      '<div class="install-card">' +
+        '<div class="ic-ico">' +
+          '<svg viewBox="0 0 24 24" fill="none" stroke="#0C8B94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
+            '<rect x="6" y="2" width="12" height="20" rx="2.6"/><path d="M11 18.5h2"/></svg>' +
+        '</div>' +
+        '<div class="ic-t"><b>装到手机主屏，像 App 一样用</b>' +
+          '<span>安卓：浏览器菜单选「安装应用 / 添加到主屏」；iPhone：分享 ⤴ → 添加到主屏幕。不用下载安装包。</span></div>' +
+        '<button class="ic-btn" id="btnInstall" style="display:none">一键安装</button>' +
       '</div>';
 
     var dz = $('#dz'), input = $('#fileInput'), go = $('#btnGo');
+
+    /* 已经装到主屏、正以 App 模式运行时，别再劝装一次 */
+    var icard = $('.install-card');
+    if (icard && isStandalone()) icard.style.display = 'none';
 
     dz.addEventListener('click', function () { input.click(); });
     /* 键盘用户：Tab 能到（tabindex=0），Enter / 空格能触发（role=button）。
@@ -636,6 +693,12 @@
     if (wpOpen) wpOpen.addEventListener('click', function () { openProfile(wpOpen.dataset.open); });
     var wpAdd = $('#view-intake [data-add]');
     if (wpAdd) wpAdd.addEventListener('click', openSheet);
+
+    var ib = $('#btnInstall');
+    if (ib) {
+      if (DEFERRED_INSTALL) ib.style.display = '';
+      ib.addEventListener('click', doInstall);
+    }
   }
 
   /* ================= 扫描动效 ================= */
@@ -1041,13 +1104,13 @@
       convHtml +
 
       '<div class="sec-title"><h2>八个维度的状态</h2><span class="sub">分数越高越好，40 为下限</span></div>' +
-      '<div class="card">' + domainBars + '</div>' +
+      '<div class="card domain-grid">' + domainBars + '</div>' +
 
       riskHtml + benignHtml +
 
       '<div class="sec-title"><h2>按星级排，先做这几件</h2><span class="sub">7 星最优先，同分看严重度</span></div>' +
       '<div class="rank-note">星越多不代表病越重，代表<b>现在最该动手</b>。判断看四件事：数值偏离多少、器官有没有已经出现改变、是不是和别的异常构成组合风险、现在干预还来不来得及。</div>' +
-      allCards +
+      '<div class="findings-grid">' + allCards + '</div>' +
       (r.findings.length > FOLD_AT && !STATE.showAllFindings ?
         '<button class="btn btn-ghost" id="btnAllFindings">查看全部 ' + r.findings.length + ' 项</button>' : '') +
       minorHtml +
