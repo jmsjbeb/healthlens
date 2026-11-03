@@ -2,6 +2,17 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<!-- PWA 安装事件必须在「任何脚本之前」注册：Chrome 派发 beforeinstallprompt
+     的时机不保证在 app.js 加载之后，晚了就永远收不到，用户看不到「一键安装」。
+     这里只负责把事件存下来 + 给 <html> 挂 can-install 类（CSS 据此显示按钮），
+     具体点击行为在 app.js 的 doInstall()。 -->
+<script>
+  window.addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault();
+    window.__HL_BIP = e;
+    document.documentElement.classList.add('can-install');
+  });
+</script>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0A6E75">
 <meta name="description" content="上传体检报告，分清真假异常，按星级排先后，给出就医、饮食、运动三份可执行方案。">
@@ -14,17 +25,6 @@
 <meta name="apple-mobile-web-app-title" content="康鉴">
 <meta name="format-detection" content="telephone=no">
 <link rel="stylesheet" href="css/app.css">
-<!-- PWA 安装事件必须在「任何脚本之前」注册：Chrome 派发 beforeinstallprompt
-     的时机不保证在 app.js 加载之后，晚了就永远收不到，用户看不到「一键安装」。
-     这里只负责把事件存下来 + 给 <html> 挂 can-install 类（CSS 据此显示按钮），
-     具体点击行为在 app.js 的 doInstall()。 -->
-<script>
-  window.addEventListener('beforeinstallprompt', function (e) {
-    e.preventDefault();
-    window.__HL_BIP = e;
-    document.documentElement.classList.add('can-install');
-  });
-</script>
 </head>
 <body>
 
