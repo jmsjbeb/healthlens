@@ -1,0 +1,21 @@
+# ===== 本机开发密钥：绝不提交 =====
+# 这些文件里放着真实的 API 密钥，只应存在于本机。
+# 一旦被提交，密钥就等于公开（前端代码任何人都能看）。
+js/config.local.js
+config.local.js
+server/key.local.txt
+server/key.local
+.env
+.env.*
+
+# ===== 依赖 / 系统垃圾 =====
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+
+# ===== 一次性测试产物 =====
+# 回归脚本在 E:/tmp/hltest/，不在项目内；若有人放进项目，也一并忽略
+test-out/
+*.spec.png

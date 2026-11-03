@@ -1,0 +1,19 @@
+{
+  "name": "康鉴 HealthLens · 体检报告解读",
+  "short_name": "康鉴",
+  "description": "上传体检报告，分清真假异常，按星级排先后，给出就医、饮食、运动三份可执行方案。",
+  "lang": "zh-CN",
+  "dir": "ltr",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0A6E75",
+  "background_color": "#F7FAFB",
+  "categories": ["health", "medical", "lifestyle"],
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
