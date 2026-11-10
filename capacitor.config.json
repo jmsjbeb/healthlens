@@ -1,0 +1,14 @@
+{
+  "appId": "com.jmsjbeb.healthlens",
+  "appName": "康鉴",
+  "webDir": "www",
+  "loggingBehavior": "production",
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  },
+  "server": {
+    "hostname": "localhost",
+    "androidScheme": "https"
+  }
+}
