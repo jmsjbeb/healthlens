@@ -183,29 +183,33 @@ HL.notify = (function () {
   /* 权限：checkPermissions 不弹框；requestPermissions 只在用户点「开启」时调。 */
   function checkPermission() {
     var p = plugin;
-    if (!p || typeof p.checkPermissions !== 'function') return Promise.resolve('unknown');
+    /* 任何一条「拿不到结果」的路径都必须把 permission 复位，
+       否则 status() 会残留上一次的 granted，排障时误导。 */
+    if (!p || typeof p.checkPermissions !== 'function') { permission = 'unknown'; return Promise.resolve('unknown'); }
     try {
       var r = p.checkPermissions();
-      if (!r || typeof r.then !== 'function') return Promise.resolve('unknown');
+      if (!r || typeof r.then !== 'function') { permission = 'unknown'; return Promise.resolve('unknown'); }
       return r.then(function (s) {
         permission = (s && s.display) ? String(s.display) : 'unknown';
         return permission;
-      }, function () { return 'unknown'; });
+      }, function () { permission = 'unknown'; return permission; });
     } catch (e) {
+      permission = 'unknown';
       return Promise.resolve('unknown');
     }
   }
   function requestPermission() {
     var p = plugin;
-    if (!p || typeof p.requestPermissions !== 'function') return Promise.resolve('unknown');
+    if (!p || typeof p.requestPermissions !== 'function') { permission = 'unknown'; return Promise.resolve('unknown'); }
     try {
       var r = p.requestPermissions();
-      if (!r || typeof r.then !== 'function') return Promise.resolve('unknown');
+      if (!r || typeof r.then !== 'function') { permission = 'unknown'; return Promise.resolve('unknown'); }
       return r.then(function (s) {
         permission = (s && s.display) ? String(s.display) : 'unknown';
         return permission;
-      }, function () { return 'unknown'; });
+      }, function () { permission = 'unknown'; return permission; });
     } catch (e) {
+      permission = 'unknown';
       return Promise.resolve('unknown');
     }
   }

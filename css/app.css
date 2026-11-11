@@ -270,6 +270,16 @@ h1,h2,h3,h4,p{margin:0}
 .scan-track{height:3px;background:rgba(255,255,255,.14);border-radius:2px;margin-top:14px;overflow:hidden}
 .scan-fill{height:100%;width:0;background:linear-gradient(90deg,#12A0A8,#4FD8D2);border-radius:2px;transition:width .3s linear}
 .scan-note{font-size:11px;color:rgba(255,255,255,.38);margin-top:16px;line-height:1.65}
+/* 识别遮罩的出口：worker 卡住时用户必须能自己退出来，不能被锁死 */
+.scan-cancel{
+  margin-top:24px; align-self:center;
+  padding:10px 24px; border-radius:10px;
+  border:1px solid rgba(255,255,255,.24);
+  background:transparent; color:rgba(255,255,255,.8);
+  font-size:13px; font-weight:600; letter-spacing:.02em;
+  cursor:pointer;
+}
+.scan-cancel:active{background:rgba(255,255,255,.08)}
 
 /* ---------- 演示提示 ---------- */
 .demo-bar{
@@ -2182,6 +2192,21 @@ html{scroll-behavior:smooth}
   flex:1 1 160px;min-width:0;
   font-size:11px;line-height:1.55;color:var(--ink3);
 }
+/* v1.3：今日卡片的「完整计划」入口 —— 首屏不能只有一张提醒 */
+.hl-today-cta{
+  display:flex; flex-direction:column; align-items:flex-start; gap:7px;
+  margin-top:12px; padding-top:12px;
+  border-top:1px dashed var(--line);
+}
+.hl-today-plan{
+  width:100%; padding:10px 14px; border-radius:9px;
+  background:var(--teal); color:#fff;
+  font-size:13px; font-weight:700; line-height:1.35;
+  box-shadow:0 1px 2px rgba(12,139,148,.35);
+  transition:transform .12s ease, background .15s ease;
+}
+.hl-today-plan:active{transform:scale(.98); background:var(--teal-d)}
+.hl-today-cta-note{font-size:11px; line-height:1.55; color:var(--ink3)}
 .hl-today-flash{animation:hlTodayFlash 1.5s ease both}
 @keyframes hlTodayFlash{
   0%{box-shadow:0 0 0 0 rgba(12,139,148,.45)}

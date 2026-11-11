@@ -33,6 +33,23 @@
      2400 宽约 700 万像素，预处理 1–2 秒，可以接受。 */
   var MAXW = 2400;
   var tessLoading = null;
+  var activeRun = null;
+
+  /* 原生壳里 Android aapt 会把 assets 里的 .gz 自动解压、并去掉 .gz 后缀：
+     APK 内只有 chi_sim.traineddata（未压缩），网页版 / Pages 则是
+     chi_sim.traineddata.gz。Tesseract worker 的规则是
+       gzip ? '.traineddata.gz' : '.traineddata'
+     所以原生壳必须传 gzip:false，否则会去请求一个不存在的文件，
+     createWorker 永不 resolve —— 界面就一直卡在「正在加载中文语言包」。
+     必须在 recognize() 运行时读：本文件加载早于 index.html 里
+     __HL_NATIVE__ 的赋值，写在模块顶层会读到 undefined。 */
+  function nativeLang() {
+    try {
+      if (window.__HL_NATIVE__ === true) return true;
+      var C = window.Capacitor;
+      return !!(C && typeof C.isNativePlatform === 'function' && C.isNativePlatform());
+    } catch (e) { return false; }
+  }
 
   /* ================= 引擎懒加载 ================= */
   /* 5.7MB 的资源不能塞进首屏。用户点了「拍照识别」才下载，
@@ -302,7 +319,8 @@
 
   function recognize(file, onStep) {
     var step = onStep || function () {};
-    var o = null;
+    var o = null, worker = null, timer = null, bail = null;
+    var gate = new Promise(function (_, rej) { bail = rej; });
 
     if (!AVAILABLE) {
       return Promise.reject(new Error(
@@ -314,7 +332,7 @@
       ));
     }
 
-    return loadTess()
+    var chain = loadTess()
       .then(function (T) {
         step('loading', 0.06, '正在加载识别引擎');
         return readImage(file).then(function (r) {
@@ -330,15 +348,16 @@
           workerPath: BASE + 'worker.min.js',
           corePath: BASE,
           langPath: BASE,
-          gzip: true,
+          gzip: !nativeLang(),
           logger: function (m) {
             if (m.status === 'loading language traineddata') step('ocr', 0.2, '正在加载中文语言包');
             else if (m.status === 'initializing api') step('ocr', 0.24, '正在初始化');
             else if (m.status === 'recognizing text') step('ocr', 0.26 + m.progress * 0.6, '正在识别文字');
           }
         }).then(function (w) {
+          worker = w;
           return w.recognize(x.p.canvas, {}, { text: true, blocks: true }).then(function (r) {
-            return w.terminate().then(function () { return { r: r, p: x.p }; });
+            return w.terminate().then(function () { worker = null; return { r: r, p: x.p }; });
           });
         });
       })
@@ -356,7 +375,6 @@
         var items = buildItems(raw);
 
         var hit = items.filter(function (i) { return i.id; }).length;
-        if (o && o.url) URL.revokeObjectURL(o.url);
         return {
           items: items,
           hit: hit,
@@ -370,11 +388,40 @@
         HL.ocr._last = res;          /* 调试与自动化测试用 */
         step('done', 1, '完成');
         return res;
-      })
-      .catch(function (e) {
-        if (o && o.url) URL.revokeObjectURL(o.url);
-        throw e;
       });
+
+    /* 兜底：worker 一旦卡在加载资源上，Promise 可能永远不 settle
+       （v1.2 的 .gz 文件名不匹配就是这么把用户锁死的）。
+       给一个总超时和「取消」出口，保证用户永远不会被困在扫描遮罩里。 */
+    var timeout = new Promise(function (_, rej) {
+      timer = setTimeout(function () {
+        rej(new Error(
+          '识别超过 90 秒，已自动停止。\n\n' +
+          '常见原因：照片太大、反光严重，或者识别引擎没能启动。' +
+          '建议把报告平放、光线均匀、正对着只拍「项目名称 + 结果」那几列，再试一次；' +
+          '也可以先点「先用样板报告体验」看看完整解读。'
+        ));
+      }, 90000);
+    });
+
+    activeRun = {
+      cancel: function () {
+        bail(new Error('已取消识别。'));
+        if (worker) { try { worker.terminate(); } catch (e) {} }
+      }
+    };
+
+    function finish() {
+      if (timer) { clearTimeout(timer); timer = null; }
+      activeRun = null;
+      if (o && o.url) { try { URL.revokeObjectURL(o.url); } catch (e) {} }
+      if (worker) { try { worker.terminate(); } catch (e) {} }
+    }
+
+    return Promise.race([chain, gate, timeout]).then(
+      function (res) { finish(); return res; },
+      function (e) { finish(); throw e; }
+    );
   }
 
   /* ================= 核对界面 ================= */
@@ -565,6 +612,7 @@
   HL.ocr = {
     available: AVAILABLE,
     recognize: recognize,
+    cancel: function () { if (activeRun) activeRun.cancel(); },
     mountVerify: mountVerify,
     /* 测试用 */
     _parseLines: parseLines,

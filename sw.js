@@ -6,20 +6,11 @@
      2. 更新走「网络优先」，拿不到网络才用缓存
         —— 不做「缓存优先」，否则改一版代码用户永远看到旧的
    ============================================================ */
-/* v13：新增 APK 专属的今日卡片与每日本地通知（js/today.js、js/notify.js），
-   index.html / css/app.css / js/app.js 也有改动，必须 bump 版本号，
-   否则老用户一直拿旧页面（网络优先，不会读到旧缓存）。 */
-const CACHE = 'healthlens-v13';
-/* 这两个模块只在 Capacitor 原生壳（https://localhost / capacitor://localhost）里
-   由 index.html 条件加载；公开版网页 / PWA 永远不会请求它们，也不预缓存，
-   「网页版不请求任何新资源」这条不变。
-   原生壳里预缓存一份，保证断网 / SW 回退时拿到的是真正的 JS，
-   而不是被兜底成 index.html。install 里的 catch 保证缺一个也不会让安装失败。 */
-const NATIVE_ASSETS =
-  (self.location.protocol !== 'http:' &&
-   (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1'))
-    ? ['./js/today.js', './js/notify.js']
-    : [];
+/* v14：原生壳（Capacitor APK）不再注册 Service Worker —— 包内资源本就在本地，
+   不需要缓存；而 SW 的 fetch 兜底会把请求不到的 .js/.wasm 悄悄换成 index.html，
+   反而掩盖真实的加载失败。这里只服务网页版 / PWA，ASSETS 不再包含 APK 专属脚本。
+   bump 版本号是为了把 v13 里可能缓存的坏响应一次清掉。 */
+const CACHE = 'healthlens-v14';
 const ASSETS = [
   './',
   './index.html',
@@ -35,7 +26,6 @@ const ASSETS = [
   './js/summary.js',
   './js/img.js',
   './js/app.js',
-  ...NATIVE_ASSETS,
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

@@ -188,6 +188,18 @@
 
   function calCard(kind) {
     var isTrain = kind === 'train';
+    /* 原生壳里 <a download> 没有 DownloadListener：点了没有任何反应，
+       而 saveICS 仍返回 true，按钮还会谎报「已下载」。v1.3 起 APK 用
+       首屏「开启每日提醒」取代 .ics，这里只留一句明确引导，
+       绝不留一个点了没反应还假装成功的按钮。 */
+    if (window.__HL_NATIVE__ === true) {
+      return '<div class="cal-card">' +
+        '<div class="cal-hd"><b>到点提醒已经装在 APP 里</b>' +
+          '<span>不用下载文件、不用授权、断网也会响</span></div>' +
+        '<p class="cal-note">回到首屏「今天」卡片，点 <b>「开启每日提醒」</b>，' +
+          '每天 7:30 / 12:00 / 18:30 / 19:00 会自动提醒你该怎么吃、怎么练。</p>' +
+      '</div>';
+    }
     return '<div class="cal-card">' +
       '<div class="cal-hd"><b>老是忘？让它自己提醒你</b>' +
         '<span>写进手机自带日历，不用授权、不用注册、不依赖网络</span></div>' +
@@ -563,7 +575,7 @@
 
       '<div class="sec-title"><h2>同一份报告，三个红字怎么讲</h2></div>' +
       '<div class="red-demo">' +
-        '<div class="rd-head">下面三条都来自同一份真实报告，都带 ↑ 或 ↓。' +
+        '<div class="rd-head">下面三条都来自同一份示例报告，都带 ↑ 或 ↓。' +
           '<b>两个不用管，一个必须管</b>——区别不在箭头，在它到底影响什么。</div>' +
 
         '<div class="rd-item ok">' +
@@ -606,6 +618,10 @@
         '报告识别在本机完成，图片不会上传。识别结果会先让你逐行核对再分析——OCR 不是百分之百准，数字错一个结论就会反。所有结论基于公开的检验参考区间与临床指南，不替代执业医师的诊断。' +
       '</div>' +
 
+      /* 已经装成 APK 了就别再劝「装到主屏」：原生壳不派发
+         beforeinstallprompt，isStandalone() 也认不出 Capacitor，
+         这张卡在 APP 里只会让人以为还得再装一次。 */
+      (window.__HL_NATIVE__ === true ? '' :
       '<div class="install-card">' +
         '<div class="ic-ico">' +
           '<svg viewBox="0 0 24 24" fill="none" stroke="#0C8B94" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
@@ -614,7 +630,7 @@
         '<div class="ic-t"><b>装到手机主屏，像 App 一样用</b>' +
           '<span>安卓：浏览器菜单选「安装应用 / 添加到主屏」；iPhone：分享 ⤴ → 添加到主屏幕。不用下载安装包。</span></div>' +
         '<button class="ic-btn" id="btnInstall">一键安装</button>' +
-      '</div>';
+      '</div>');
 
     var dz = $('#dz'), input = $('#fileInput'), go = $('#btnGo');
 
@@ -876,17 +892,32 @@
   /* 识别完不直接出结论，先进核对页。
      理由写在 ocr.js 顶部：OCR 会认错字，一个字错结论就反，
      所以中间必须有人看一眼的机会。 */
+  var ocrRun = 0;
   function runOcr(file) {
     var scan = $('#scan'), pct = $('#scanPct'), fill = $('#scanFill');
     var now = $('#scanNow'), note = $('#scanNote');
+    var myRun = ++ocrRun;
 
     scan.classList.add('on');
     pct.textContent = '0';
     fill.style.width = '0%';
     now.textContent = '正在准备识别';
-    note.textContent = '首次使用要下载识别引擎（约 6MB），之后存在本地，不再下载';
+    /* 离线包里识别引擎本来就在手机里，说「要下载 6MB」是撒谎 */
+    note.textContent = window.__HL_NATIVE__ === true
+      ? '识别引擎已经装在这台手机里，不用联网、不用下载'
+      : '首次使用要下载识别引擎（约 6MB），之后存在本地，不再下载';
+
+    var cancelBtn = $('#scanCancel');
+    if (cancelBtn) {
+      cancelBtn.onclick = function () {
+        ocrRun++;                        /* 让迟到的结果作废，不再弹框 */
+        if (HL.ocr.cancel) HL.ocr.cancel();
+        scan.classList.remove('on');
+      };
+    }
 
     HL.ocr.recognize(file, function (stage, p, label) {
+      if (myRun !== ocrRun) return;
       pct.textContent = String(Math.round(p * 100));
       fill.style.width = (p * 100) + '%';
       now.textContent = label;
@@ -894,6 +925,7 @@
       if (stage === 'parse') note.textContent = '正在对照指标库';
     }).then(function (res) {
       scan.classList.remove('on');
+      if (myRun !== ocrRun) return;
 
       if (!res.items.length) {
         window.alert(
@@ -907,6 +939,7 @@
       HL.ocr.mountVerify($('#view-intake'), res, applyUploaded, backToIntake);
     }).catch(function (e) {
       scan.classList.remove('on');
+      if (myRun !== ocrRun) return;      /* 已取消，不再弹框打扰 */
       window.alert((e && e.message) || '识别失败，换一张图试试');
     });
   }
@@ -2635,8 +2668,13 @@
 
     $('#btnShare').addEventListener('click', openShare);
 
+    /* APP 里没有任何密钥、也没有本机代理，AI 设置弹层全是桌面话术，
+       保存后还会去请求一个不存在的 /api/chat。原生壳直接隐藏。 */
     var llmBtn = $('#btnLlm');
-    if (llmBtn) llmBtn.addEventListener('click', openLlmSheet);
+    if (llmBtn) {
+      if (window.__HL_NATIVE__ === true) llmBtn.style.display = 'none';
+      else llmBtn.addEventListener('click', openLlmSheet);
+    }
 
     /* 上次看过就直接回到结果页，不用每次重新点一遍 */
     var p0 = activeProf();
@@ -2653,8 +2691,12 @@
     }
 
     /* PWA：手机上可以「添加到主屏幕」，离线也能打开。
-       file:// 下不注册（浏览器本来也不支持）。 */
-    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0) {
+       file:// 下不注册（浏览器本来也不支持）。
+       APK 里所有资源本来就在包内，不需要 SW；而 SW 的 fetch 兜底会把
+       请求不到的 .js/.wasm 悄悄换成 index.html，反而掩盖真实的加载失败
+       （v1.2 的 OCR 卡住就有这一层帮凶）。v1.3 起原生壳不注册 SW。 */
+    if ('serviceWorker' in navigator && location.protocol.indexOf('http') === 0 &&
+        window.__HL_NATIVE__ !== true) {
       window.addEventListener('load', function () {
         navigator.serviceWorker.register('sw.js').catch(function () {});
       });
@@ -2677,6 +2719,15 @@
       $('#btnReset').style.display = '';
       switchTab('overview');
       return r;
+    },
+    /* v1.3：今日卡片的「查看完整计划」入口。
+       没报告时用样板报告把四个页签铺开，但不传 kind —— 不落盘，
+       下次打开 APP 不会莫名变成一份示例报告。 */
+    openTodayPlan: function () {
+      if (!STATE.result || STATE.result.isEmpty) HL.app.render(HL.sample);
+      switchTab('diet');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return STATE.result;
     },
     /* v1.2：APK 今日卡片 / 本地定时通知复用的现成数据（只读） */
     todayData: todayData,

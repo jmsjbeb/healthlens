@@ -277,11 +277,22 @@ HL.today = (function () {
     '</div>';
   }
 
+  /* v1.3：首屏不能只是「一张提醒」。
+     给一个明确入口，让完整解读（底部四个页签）一眼可达。 */
+  function ctaHtml(d) {
+    return '<div class="hl-today-cta">' +
+      '<button type="button" class="hl-today-plan" id="hlTodayPlan">' +
+        (d.hasReport ? '查看完整计划 →' : '看一份示例的完整计划 →') +
+      '</button>' +
+      '<span class="hl-today-cta-note">底部还有 总览 · 就医 · 怎么吃 · 怎么运动 四个页签</span>' +
+    '</div>';
+  }
+
   function cardHtml(d) {
     var w = weekInfo(d);
     var rc = recheckText(d);
     var sub = d.hasReport
-      ? '按你这份报告的计划，今天这样吃、这样动'
+      ? '按当前这份报告，今天这样吃、这样动'
       : '先看看今天怎么吃怎么动';
     var monthLine = '第 ' + d.month + ' 个月' + (d.monthTitle ? ' · ' + d.monthTitle : '');
     return '<section class="hl-today" id="' + CARD_ID + '" aria-label="今日计划">' +
@@ -306,6 +317,7 @@ HL.today = (function () {
       '</div>' +
       (rc ? '<p class="hl-today-recheck">' + esc(rc) + '</p>' : '') +
       notifyHtml() +
+      ctaHtml(d) +
     '</section>';
   }
 
@@ -360,6 +372,18 @@ HL.today = (function () {
     });
   }
 
+  function bindPlan(root) {
+    var btn = root.querySelector('#hlTodayPlan');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      try {
+        if (HL.app && typeof HL.app.openTodayPlan === 'function') HL.app.openTodayPlan();
+      } catch (e) {
+        /* 打不开也不能让卡片报错，上传页照常可用 */
+      }
+    });
+  }
+
   /* ---------- 对外接口 ---------- */
   function mount(container, report) {
     if (!isNative()) return null;
@@ -369,6 +393,7 @@ HL.today = (function () {
       var d = normalize(report);
       host.innerHTML = cardHtml(d);
       bindToggle(host);
+      bindPlan(host);
       if (window.__HL_OPEN_TODAY__) {
         window.__HL_OPEN_TODAY__ = false;
         focus();

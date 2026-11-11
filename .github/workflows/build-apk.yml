@@ -183,6 +183,29 @@ jobs:
           fi
           echo "  OK：APK 内无密钥/服务端文件名"
 
+          # ---- v1.3：OCR 语言包与原生壳分支自检 ----
+          # Android aapt 打包 assets 时会自动把 .gz 解压、并去掉 .gz 后缀。
+          # 于是 APK 里是 chi_sim.traineddata（无后缀），网页版 / Pages 里才是
+          # chi_sim.traineddata.gz。js/ocr.js 在原生壳下传 gzip:false，两者必须对齐。
+          # v1.2 真机就是漏了这一层，createWorker 取不到语言包、界面永久卡死。
+          # 这里在云端直接断言，任何一环变了都不把坏包传出去。
+          LIST="$(unzip -l "$APK")"
+          if ! printf '%s\n' "$LIST" | grep -qE 'chi_sim\.traineddata[[:space:]]*$'; then
+            echo "!! APK 内找不到无后缀的 chi_sim.traineddata（OCR 会卡死）"; exit 1
+          fi
+          if printf '%s\n' "$LIST" | grep -qE 'chi_sim\.traineddata\.gz[[:space:]]*$'; then
+            echo "!! APK 内仍有 .gz 后缀语言包，js/ocr.js 的 gzip:false 会取不到文件"; exit 1
+          fi
+          if ! grep -q 'function nativeLang' www/js/ocr.js; then
+            echo "!! www/js/ocr.js 缺少 nativeLang()，原生壳仍会去请求 .gz"; exit 1
+          fi
+          for js in today.js notify.js; do
+            if ! printf '%s\n' "$LIST" | grep -qE "assets/public/js/${js}[[:space:]]*\$"; then
+              echo "!! APK 内缺少 js/$js（今日卡片 / 每日提醒会失效）"; exit 1
+            fi
+          done
+          echo "  OK：语言包无后缀 + nativeLang() 存在 + 今日/通知脚本齐全"
+
       - name: 上传 APK
         uses: actions/upload-artifact@v4
         with:

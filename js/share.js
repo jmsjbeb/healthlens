@@ -308,6 +308,7 @@ HL.share = (function () {
     if (!cv) return;
 
     var url = cv.toDataURL('image/png');
+    var isNative = window.__HL_NATIVE__ === true;
 
     maskEl = document.createElement('div');
     maskEl.className = 'share-mask';
@@ -318,9 +319,13 @@ HL.share = (function () {
           '<button class="share-x" id="shClose" aria-label="关闭">✕</button>' +
         '</div>' +
         '<div class="share-img-wrap"><img id="shImg" alt="体检报告解读分享卡" src="' + url + '"></div>' +
-        '<p class="share-tip">手机上长按图片即可保存；也可以点下面按钮下载</p>' +
+        '<p class="share-tip">' +
+          (isNative
+            ? '在上方图片上长按，选「保存图片」即可存入相册'
+            : '手机上长按图片即可保存；也可以点下面按钮下载') + '</p>' +
         '<div class="share-ft">' +
-          '<button class="btn btn-main" id="shSave">下载图片</button>' +
+          '<button class="btn btn-main" id="shSave">' +
+            (isNative ? '怎么保存？' : '下载图片') + '</button>' +
           '<button class="btn btn-ghost" id="shCancel">取消</button>' +
         '</div>' +
       '</div>';
@@ -332,6 +337,15 @@ HL.share = (function () {
     maskEl.querySelector('#shClose').addEventListener('click', close);
     maskEl.querySelector('#shCancel').addEventListener('click', close);
     maskEl.querySelector('#shSave').addEventListener('click', function () {
+      /* APP 里 <a download> 没有 DownloadListener，点了会静默无反应。
+         给明确指引，绝不假装已经保存。 */
+      if (isNative) {
+        window.alert(
+          'APP 里不能直接下载文件。\n\n' +
+          '在上方这张图片上长按 → 选「保存图片」，就能存到手机相册。'
+        );
+        return;
+      }
       var a = document.createElement('a');
       a.href = url;
       a.download = '康鉴-体检解读-' + r.score + '分.png';
