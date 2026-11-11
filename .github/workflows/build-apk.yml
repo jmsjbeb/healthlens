@@ -91,6 +91,9 @@ jobs:
           npm init -y >/dev/null
           npm i -D @capacitor/cli@7 @capacitor/core@7
           npm i @capacitor/android@7
+          # v1.2：APK 专属的本地定时通知插件（必须在 cap add 之前装好，
+          # 这样 cap add 内部的 sync 才会把它写进 capacitor.plugins.json）
+          npm i @capacitor/local-notifications@7
           npx cap --version
           node -e "const c=require('./capacitor.config.json'); console.log('appId='+c.appId+' appName='+c.appName+' webDir='+c.webDir+' bundledWebRuntime='+String(c.bundledWebRuntime))"
 
@@ -100,6 +103,52 @@ jobs:
           set -euo pipefail
           npx cap add android
           npx cap copy android
+
+      - name: 幂等补齐通知权限（POST_NOTIFICATIONS / 重启恢复）
+        shell: bash
+        run: |
+          set -euo pipefail
+          MF="android/app/src/main/AndroidManifest.xml"
+          python3 - "$MF" <<'PY'
+          import re
+          import sys
+          
+          path = sys.argv[1]
+          with open(path, "r", encoding="utf-8") as fh:
+              text = fh.read()
+          
+          # Android 13+ (API 33) 的通知运行时权限；重启后由插件自带的
+          # LocalNotificationRestoreReceiver 恢复已排期的通知。
+          # 注意 Android 真实权限名是 RECEIVE_BOOT_COMPLETED（不是 RECEIVER_）。
+          # 不申请 SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM：通知走非精确调度，
+          # 插件在不支持精确闹钟时自动退化为普通闹钟，避免特殊权限。
+          perms = [
+              "android.permission.POST_NOTIFICATIONS",
+              "android.permission.RECEIVE_BOOT_COMPLETED",
+              "android.permission.WAKE_LOCK",
+          ]
+          missing = [p for p in perms if ('"%s"' % p) not in text]
+          if missing:
+              block = "\n" + "\n".join(
+                  '    <uses-permission android:name="%s" />' % p for p in missing
+              ) + "\n"
+              m = re.search(r"<manifest\b[^>]*>", text)
+              if not m:
+                  raise SystemExit("!! 未找到 <manifest> 开标签: " + path)
+              text = text[:m.end()] + block + text[m.end():]
+              with open(path, "w", encoding="utf-8", newline="") as fh:
+                  fh.write(text)
+              print("  [补入] " + ", ".join(missing))
+          else:
+              print("  OK：三项权限已存在，无需改动")
+          
+          with open(path, "r", encoding="utf-8") as fh:
+              final = fh.read()
+          for p in perms:
+              if ('"%s"' % p) not in final:
+                  raise SystemExit("!! 权限仍缺失: " + p)
+          print("  OK：POST_NOTIFICATIONS / RECEIVE_BOOT_COMPLETED / WAKE_LOCK 均在 Manifest 中")
+          PY
 
       - name: 接受 Android SDK 许可 / 补齐平台
         shell: bash

@@ -162,13 +162,15 @@
     });
   }
 
-  /* 三餐提醒：每天三条，共 12 周 */
+  /* 三餐提醒：每天三条，共 12 周。
+     v1.2：MEALS 提到模块层，让 APK 的「今日卡片 / 本地通知」直接复用
+     同一份时间与文案，不另写一套（HL.app.todayData() 会把它读出去）。 */
+  var MEALS = [
+    { h: 7, m: 30, t: '早餐', d: '先吃蛋白（蛋/奶/豆）和菜，最后吃主食。' },
+    { h: 12, m: 0, t: '午餐', d: '顺序：菜 → 肉 → 饭。一拳主食，一掌蛋白，两捧菜。' },
+    { h: 18, m: 30, t: '晚餐', d: '尽量 19 点前吃完，主食减到半拳，蛋白和菜照常。' }
+  ];
   function mealEvents() {
-    var MEALS = [
-      { h: 7, m: 30, t: '早餐', d: '先吃蛋白（蛋/奶/豆）和菜，最后吃主食。' },
-      { h: 12, m: 0, t: '午餐', d: '顺序：菜 → 肉 → 饭。一拳主食，一掌蛋白，两捧菜。' },
-      { h: 18, m: 30, t: '晚餐', d: '尽量 19 点前吃完，主食减到半拳，蛋白和菜照常。' }
-    ];
     return MEALS.map(function (x, i) {
       var st = new Date();
       st.setHours(x.h, x.m, 0, 0);
@@ -694,6 +696,10 @@
        这里只挂点击；重渲染多少次都不会把状态弄丢。 */
     var ib = $('#btnInstall');
     if (ib) ib.addEventListener('click', doInstall);
+
+    /* v1.2：上传页（也是新装 APP 的首屏）重画后刷新今日卡片。
+       网页版不加载 js/today.js，这里就是一个 try/catch 包着的空调用。 */
+    refreshToday();
   }
 
   /* ================= 扫描动效 ================= */
@@ -2203,7 +2209,52 @@
     '</div>';
   }
 
+  /* ================= v1.2 · 今日卡片数据出口 =================
+     APK 的 js/today.js、js/notify.js 是浏览器全局脚本，拿不到这个 IIFE
+     里的私有变量。这里只做一次「只读打包」：三餐文案、当前训练周模板、
+     今天对应周几、报告分析结果、复查时间表、打卡 key 全部来自现成数据，
+     不新增任何结论，也不改判定 / 星级 / 评分。
+     网页版不加载这两个脚本，下面的 refreshToday() 就是个空调用。 */
+  function todayData() {
+    var tpl = [], monthTitle = '';
+    try {
+      var got = HL.engine.templateFor(STATE.trainMonth);
+      tpl = got.tpl || [];
+      monthTitle = (got.month && got.month.title) || '';
+    } catch (e) { tpl = []; }
+    var rep = null, name = '', key = '';
+    try { rep = reportOf(activeProf()); } catch (e) { rep = null; }
+    try { name = activeProf().name || ''; } catch (e) { name = ''; }
+    try { key = ckKey(); } catch (e) { key = ''; }
+    return {
+      meals: MEALS.map(function (x) {
+        return { h: x.h, m: x.m, t: x.t, d: x.d };
+      }),
+      tpl: (tpl || []).map(function (x) {
+        return { d: x.d || '', type: x.type || '', dur: x.dur || '', detail: x.detail || '' };
+      }),
+      month: STATE.trainMonth,
+      monthTitle: monthTitle,
+      todayIdx: todayIdx(),
+      result: STATE.result || null,
+      report: rep,
+      hasReport: !!(STATE.result && !STATE.result.isEmpty),
+      planWeeks: (STATE.result && STATE.result.plan && STATE.result.plan.weeks) || 12,
+      checkinKey: key,
+      memberName: name,
+      tab: STATE.tab
+    };
+  }
+
+  /* 通知 / 卡片模块任何异常都不能挡住主流程 */
+  function refreshToday() {
+    try {
+      if (HL.today && typeof HL.today.refresh === 'function') HL.today.refresh(todayData());
+    } catch (e) {}
+  }
+
   function renderAll(r) {
+    refreshToday();          /* v1.2：报告换了，今日卡片跟着换（网页版是空调用） */
     renderOverview(r);
     /* 空报告没有可分析的东西：就医/饮食/运动三个页签全是空的，
        留着只会让人以为坏了，直接不显示。 */
@@ -2627,6 +2678,8 @@
       switchTab('overview');
       return r;
     },
+    /* v1.2：APK 今日卡片 / 本地定时通知复用的现成数据（只读） */
+    todayData: todayData,
     state: STATE
   };
 

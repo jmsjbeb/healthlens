@@ -115,15 +115,29 @@
      iOS 是 capacitor://localhost，hostname 同样是 localhost，不排除就会去请求包里
      根本不存在的 js/config.local.js（只是 404，HL_CONFIG 仍为空、img.js 静默降级不发
      /api/chat，但会多一次无效请求）。APP 里没有任何密钥，也不需要本地代理：
-     所有判定都在本地规则引擎完成。 -->
+     所有判定都在本地规则引擎完成。
+
+     v1.2：同一个 nativeApp 判断还会「只在 APK 里」条件加载
+     js/today.js（今日卡片）与 js/notify.js（本地定时通知），
+     网页版 / PWA 不会多请求任何资源，也不会多出一个 DOM 节点。 -->
 <script>
   (function () {
     var h = location.hostname;
     var nativeApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) ||
       location.protocol === 'capacitor:' || location.protocol === 'app:' ||
       (location.protocol === 'https:' && !location.port && (h === 'localhost' || h === '127.0.0.1'));
+    /* v1.2：把「是不是原生壳」记下来，js/today.js / js/notify.js 只做防御性复核 */
+    window.__HL_NATIVE__ = nativeApp;
     if (!nativeApp && (h === 'localhost' || h === '127.0.0.1' || location.protocol === 'file:')) {
       document.write('<script src="js/config.local.js"><\/script>');
+    }
+    /* APK 专属：今日卡片 + 每日本地通知。
+       只在原生壳里 document.write，网页版 / PWA 一个字节都不会多请求。
+       顺序必须早于 js/app.js：app.js 的 renderIntake() / renderAll()
+       会把完整上下文刷给今日卡片。 */
+    if (nativeApp) {
+      document.write('<script src="js/today.js"><\/script>');
+      document.write('<script src="js/notify.js"><\/script>');
     }
   })();
 </script>

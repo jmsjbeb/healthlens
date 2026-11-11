@@ -6,9 +6,20 @@
      2. 更新走「网络优先」，拿不到网络才用缓存
         —— 不做「缓存优先」，否则改一版代码用户永远看到旧的
    ============================================================ */
-/* v12：内置样板报告改为构造示例数据，js/data.js、js/app.js 等内容有变，
-   必须 bump 版本号，否则老用户一直拿旧页面（网络优先，不会读到旧缓存）。 */
-const CACHE = 'healthlens-v12';
+/* v13：新增 APK 专属的今日卡片与每日本地通知（js/today.js、js/notify.js），
+   index.html / css/app.css / js/app.js 也有改动，必须 bump 版本号，
+   否则老用户一直拿旧页面（网络优先，不会读到旧缓存）。 */
+const CACHE = 'healthlens-v13';
+/* 这两个模块只在 Capacitor 原生壳（https://localhost / capacitor://localhost）里
+   由 index.html 条件加载；公开版网页 / PWA 永远不会请求它们，也不预缓存，
+   「网页版不请求任何新资源」这条不变。
+   原生壳里预缓存一份，保证断网 / SW 回退时拿到的是真正的 JS，
+   而不是被兜底成 index.html。install 里的 catch 保证缺一个也不会让安装失败。 */
+const NATIVE_ASSETS =
+  (self.location.protocol !== 'http:' &&
+   (self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1'))
+    ? ['./js/today.js', './js/notify.js']
+    : [];
 const ASSETS = [
   './',
   './index.html',
@@ -24,6 +35,7 @@ const ASSETS = [
   './js/summary.js',
   './js/img.js',
   './js/app.js',
+  ...NATIVE_ASSETS,
   './manifest.json',
   './icon-192.png',
   './icon-512.png',

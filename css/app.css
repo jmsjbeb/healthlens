@@ -2113,3 +2113,83 @@ html{scroll-behavior:smooth}
     padding: 11px 14px; font-size: 13px; text-align: center;
   }
 }
+
+/* ===== v1.2 · 今日卡片（只有 Capacitor APK 才会插入这个 DOM） =====
+   手机单列优先；只在既有的 900px 断点上变双栏，不新增断点。
+   卡片挂在 .app 外壳里（顶栏之后、#views 之前），网页版没有这个节点，
+   所以这些规则对公开版 H5 / PWA 完全不生效。 */
+.hl-today-slot{padding:12px 16px 0}
+.hl-today{
+  background:var(--card); border:1px solid var(--teal-line);
+  border-radius:var(--r-l); box-shadow:var(--sh-2);
+  padding:14px 14px 12px; margin:0;
+}
+.hl-today-hd{display:flex;align-items:center;gap:10px}
+.hl-today-tag{
+  flex:none; font-size:11px;font-weight:700;letter-spacing:1px;color:#fff;
+  background:linear-gradient(150deg,#12A0A8,#0A6E75);
+  padding:4px 9px;border-radius:8px;
+}
+.hl-today-hd-b{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.hl-today-hd-b b{font-size:15px;line-height:1.35;color:var(--ink);font-weight:700}
+.hl-today-hd-b span{font-size:11px;line-height:1.5;color:var(--ink3)}
+.hl-today-sub{margin:9px 0 11px;font-size:12.5px;line-height:1.6;color:var(--teal-d);font-weight:600}
+.hl-today-grid{display:grid;grid-template-columns:1fr;gap:10px}
+.hl-today-col{
+  min-width:0;background:var(--card2);border:1px solid var(--line2);
+  border-radius:var(--r-m);padding:11px 12px;
+}
+.hl-today-label{
+  font-size:10.5px;font-weight:700;letter-spacing:.6px;color:var(--ink4);
+  margin-bottom:7px;
+}
+.hl-today-label i{font-style:normal;color:var(--teal);margin-left:4px;letter-spacing:0}
+.hl-today-train b{display:block;font-size:14px;line-height:1.4;color:var(--ink);font-weight:700}
+.hl-today-train p{margin:5px 0 0;font-size:12px;line-height:1.65;color:var(--ink2)}
+.hl-today-meals{list-style:none;margin:0;padding:0}
+.hl-today-meal{display:flex;gap:9px;padding:5px 0;border-top:1px dashed var(--line)}
+.hl-today-meal:first-child{border-top:0;padding-top:0}
+.hl-today-time{
+  flex:0 0 42px;font-size:12px;font-weight:700;color:var(--teal-d);
+  font-variant-numeric:tabular-nums;padding-top:1px;
+}
+.hl-today-meal-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.hl-today-meal-txt b{font-size:12.5px;color:var(--ink);font-weight:700}
+.hl-today-meal-txt span{font-size:11.5px;line-height:1.55;color:var(--ink3)}
+.hl-today-none{font-size:12px;line-height:1.65;color:var(--ink3)}
+.hl-today-recheck{
+  margin:10px 0 0;padding:7px 10px;border-radius:9px;
+  background:var(--teal-soft);border:1px solid var(--teal-line);
+  font-size:11.5px;line-height:1.55;color:var(--teal-d);font-weight:600;
+}
+.hl-today-notify{
+  display:flex;align-items:center;flex-wrap:wrap;gap:7px 10px;
+  margin-top:11px;padding-top:10px;border-top:1px solid var(--line2);
+}
+.hl-today-toggle{
+  flex:0 0 auto;font-size:12.5px;font-weight:700;line-height:1;
+  padding:10px 14px;border-radius:9px;
+  background:var(--teal);color:#fff;
+  box-shadow:0 1px 2px rgba(12,139,148,.35);
+}
+.hl-today-toggle.on{
+  background:var(--card);color:var(--teal-d);
+  border:1px solid var(--teal-line);box-shadow:none;
+}
+.hl-today-toggle:active{transform:scale(.97)}
+.hl-today-toggle[disabled]{opacity:.55}
+.hl-today-note{
+  flex:1 1 160px;min-width:0;
+  font-size:11px;line-height:1.55;color:var(--ink3);
+}
+.hl-today-flash{animation:hlTodayFlash 1.5s ease both}
+@keyframes hlTodayFlash{
+  0%{box-shadow:0 0 0 0 rgba(12,139,148,.45)}
+  35%{box-shadow:0 0 0 6px rgba(12,139,148,.18)}
+  100%{box-shadow:var(--sh-2)}
+}
+@media (min-width: 900px) {
+  .hl-today-slot{padding:14px 18px 0}
+  .hl-today-grid{grid-template-columns:1fr 1fr;column-gap:14px;align-items:start}
+  .hl-today-notify{flex-wrap:nowrap}
+}
